@@ -29,6 +29,7 @@ create =: {{)m
   NB.     Alternatively: check for compliance with ones that did get set upon creation.
   NB. Note 1: This addon chooses to use items of both keys and values as items in the dictionary. Alternatively, one could consider both a single item
   NB.    Either case, if not specified explicitly, one or the other behaviour should be chosen.
+  'y must be non-empty' assert y -.@:-: ''
   params =: params,('keytype';'keyshape'),. (3!:0 ; }.@$) y
   if. x-:'' do.
     params =: params,('valuetype';'valueshape'),. 4 ; 0     NB. No values provided, set default type/shape
@@ -46,8 +47,8 @@ create =: {{)m
   (prefix , 'count' , suffix) =: 0:
   if. 'tree' e. >dicttype do.
     (prefix , 'mget' , suffix) =: err f.
-    (prefix , 'min' , suffix) =: err f.
-    (prefix , 'max' , suffix) =: err f.
+    (prefix , 'min' , suffix) =: 13!:8@6 NB. stock does index error instead.
+    (prefix , 'max' , suffix) =: 13!:8@6
     (prefix , 'after' , suffix) =: err f.
     (prefix , 'since' , suffix) =: err f.
     (prefix , 'before' , suffix) =: err f.
@@ -84,3 +85,41 @@ split_name =: ('__' ,~&< [)`(({. ,&< }.)~ _2&{)@.(2 <: #@])  ''"_`([: I. '_'&=)@
 NB. wrapper for creating EasyDict in z locale.
 NB. Provide options as single, ;-separated string.
 easydict_z_=:conew&'peasydict'
+
+coclass'psym'
+coinsert'jdictionary'
+create =: {{
+  NB. create empty symbols table
+  create_jdictionary_ f. ('tree concurrent' ;< _2 ]\ 'keytype' ; 'boxed')
+  mut =: 10 T. 0 NB. mutex for updating.
+  data =: 0$a:    NB. init to no data.
+}}
+NB. Get symbol number for boxed data; add to dict and store if not known yet. Like s: but extended for any data. inverse looks up the data of symbol numbers.
+sym =: {{
+  sh=. $ y
+  id=. (~.i.])i.!.0~ ,y NB. only look up unique. A bit against dictionary approach, but assuming limited insertion at once. Otherwise impossible to know what value to insert, unless done sequentially (which could be a solution though..., in mutex, seq. insert syms if not has, add to data after loop block). TODO benchmark both.
+NB. mask of found syms; if any not found, add, else ret.
+if. _1 -.@:e. rc =. _1 get un=.(~:id)#,y do. sh$rc return.end.  NB. If all already present, return its symbol#
+  if. -.11 T. mut;1 do.
+    try.
+      (ns=. (#data)+i.+/msk) put ny=.un #~ msk=._1=rc  NB. The new data items ny get the next sequential numbers ns. msk is 1 for new data; used to interleave new&old syms for return.
+      data =: data, ny  NB. remember the new string
+      13 T. mut NB. release lock.
+    catch. NB. ensure lock is released; re-raise error.
+      13 T. mut
+      (dberm dbsig dberr)''
+    end.
+  else. 'failed to get lock'assert 0 end.
+  sh $ id{ns (<($#:I.@,)msk)} rc NB. return reshaped, expanded, interleaved new/old syms.
+}}
+NB. Fetch the boxed string for symbol# y, s: inv.
+dat =: {"0 _ ".@'data'
+NB. TODO: ordering & sorting. Benchmark 2 solutions: 1 doing lookup of sym in data, then sort by lookup selected data in dict
+NB. TODO: MISSING: GRADE of given keys.
+NB. grade takes symbols and returns them in ascending order
+grade =: ((~.i.])@(i.!.0)~ ([ { [: grad@dat ~:@[#]) ])
+NB.   this would require reverse lookup; sym into keys for sorting; could be emulated having 2 dicts per symbol table though...
+NB. TODO: persistence (once available unloading/loading working for dictionaries)
+
+NB. see how far comparison holds. Should see how e.g. comparison is possible without getting key-data first.
+NB. Then multi-sym table ops: joins/subtract/...
