@@ -82,39 +82,61 @@ NB. Use the indexes to split the name or if the number of indexes is less than 2
 NB. Note that number of indexes may be smaller then number of '_' e.g. 0 when condition from right part of the hook was false.
 split_name =: ('__' ,~&< [)`(({. ,&< }.)~ _2&{)@.(2 <: #@])  ''"_`([: I. '_'&=)@.('_' -: {:)
 
-NB. wrapper for creating EasyDict in z locale.
-NB. Provide options as single, ;-separated string.
-easydict_z_=:conew&'peasydict'
 
+NB. psym implements symbol tables; Old s: and s: inv correspond roughly to
+NB. sym__obj and dat__obj. sym__obj takes boxed data and returns symbol
+NB. indices, dat reverses this operation.
+NB. Shape is preserved.
 coclass'psym'
-coinsert'jdictionary'
+coinsert'jdictionary' NB. Inherit from jdictionary
 create =: {{
-  NB. create empty symbols table
+  NB. create empty symbols dictionary
   create_jdictionary_ f. ('tree concurrent' ;< _2 ]\ 'keytype' ; 'boxed')
-  mut =: 10 T. 0 NB. mutex for updating.
-  data =: 0$a:    NB. init to no data.
+  mut =: 10 T. 1 NB. mutex for updating. Counting so sym can recurse if insertion between check and not.
+  data =: 0$a:   NB. init to no data.
+  locktimeout =: 1 NB. 1 second timeout before sym gives up acquiring lock.
 }}
-NB. Get symbol number for boxed data; add to dict and store if not known yet. Like s: but extended for any data. inverse looks up the data of symbol numbers.
+
+NB. Get symbol number for boxed array of data; add to dict and store if not known yet. Like old s: but extended for any data.
+NB. Data can be any (boxed) datatype, and boxed array can have any shape; shape is maintained for returned symbols.
 sym =: {{
   sh=. $ y
-  id=. (~.i.])i.!.0~ ,y NB. only look up unique. A bit against dictionary approach, but assuming limited insertion at once. Otherwise impossible to know what value to insert, unless done sequentially (which could be a solution though..., in mutex, seq. insert syms if not has, add to data after loop block). TODO benchmark both.
-NB. mask of found syms; if any not found, add, else ret.
-if. _1 -.@:e. rc =. _1 get un=.(~:id)#,y do. sh$rc return.end.  NB. If all already present, return its symbol#
-  if. -.11 T. mut;1 do.
+  NB. only look up unique. A bit against dictionary approach, but assuming
+  NB. limited insertion at once. Otherwise impossible to know what value to
+  NB. insert, unless done sequentially (which could be a solution though..., in
+  NB. mutex, seq. insert syms if not has, add to data after loop block). TODO
+  NB. benchmark both.
+  id=. (~.i.])i.!.0~ ,y
+  NB. if all unique data items found reshape those filled in.
+  if. _1 -.@:e. rc =. _1 get un=.(~:id)#,y do. sh$id{rc return.end.
+  if. -.11 T. mut;locktimeout do. NB. get lock on symbol table to perform insertions.
     try.
-      (ns=. (#data)+i.+/msk) put ny=.un #~ msk=._1=rc  NB. The new data items ny get the next sequential numbers ns. msk is 1 for new data; used to interleave new&old syms for return.
-      data =: data, ny  NB. remember the new string
-      13 T. mut NB. release lock.
-    catch. NB. ensure lock is released; re-raise error.
+      if. +./has ny=.un #~ msk=._1=rc do. NB.  msk is 1 for new data; used to interleave new&old syms for return. if any new insertions before lock, redo sym, now having the lock ensures we'd have to retry only once.
+        ns =. sym ny
+      else.                               NB. No contention:
+        (ns=. (#data)+i.+/msk) put ny     NB. The new data items ny get the next sequential numbers ns.
+        data =: data, ny                  NB. Remember the new string.
+      end.
+      13 T. mut                           NB. Release lock (regular)
+    catch.                                NB. If error, ensure lock is released; re-raise error.
       13 T. mut
       (dberm dbsig dberr)''
     end.
-  else. 'failed to get lock'assert 0 end.
+  else. 'failed to get lock'assert 0 end. NB. No lock after 1 second. Adjust if needed.
   sh $ id{ns (<($#:I.@,)msk)} rc NB. return reshaped, expanded, interleaved new/old syms.
 }}
 NB. Fetch the boxed string for symbol# y, s: inv.
 dat =: {"0 _ ".@'data'
-NB. TODO: ordering & sorting. Benchmark 2 solutions: 1 doing lookup of sym in data, then sort by lookup selected data in dict
+
+NB. Export wrappers for EasyDicts and symbols to the z locale.
+
+NB.*v easydict_z_: Create easydict. y: options as single, ;-separated string.
+easydict_z_=:conew&'peasydict'
+NB.*v symbols_z_: Create symbol table. Ignores y.
+symbols_z_ =:''&conew@'psym'
+
+NB. Future:
+NB. TODO: grading & sorting. Benchmark 2 solutions: 1 doing lookup of sym in data, then sort by lookup selected data in dict
 NB. TODO: MISSING: GRADE of given keys.
 NB. grade takes symbols and returns them in ascending order
 grade =: ((~.i.])@(i.!.0)~ ([ { [: grad@dat ~:@[#]) ])
