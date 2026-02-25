@@ -80,3 +80,7 @@ NB. Left part of hook.
 NB. Use the indexes to split the name or if the number of indexes is less than 2 then suppose name is from base.
 NB. Note that number of indexes may be smaller then number of '_' e.g. 0 when condition from right part of the hook was false.
 split_name =: ('__' ,~&< [)`(({. ,&< }.)~ _2&{)@.(2 <: #@])  ''"_`([: I. '_'&=)@.('_' -: {:)
+
+NB. wrapper for creating EasyDict in z locale.
+NB. Provide options as single, ;-separated string.
+easydict_z_=:conew&'peasydict'
