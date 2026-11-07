@@ -6,7 +6,8 @@ NB. backingdict stores backing jdict. Before the first put, methods are placehol
 NB. Currently not supported: params taking gerunds as values (keycompare, keyhash).
 
 NB. peasysym wraps jsymbol in a similar way (and is a subclass of easydict pretty much as jsymbol is to jdict).
-NB. it adds s to behave like old s: (returning symbols in addition to storing them; but normal put is still available) and adds sorting.
+NB. it adds s to behave almost like old s: (returning symbols in addition to storing them; but normal put is still available) and adds sorting.
+NB. Only difference remains: s expects data items, whereas s:, when given a string would act as if applied to the result of <;._1. As jsymbol was extended to accommodate any datatype (but numbers), the old behaviour is incompatbile.
 NB. Due to J semantics and get doing lookup either way, asc and desc implement both lexicographic sorting and sorting based on insertion order, when given symbol ints or their data, respectively. Their dyads sort any x based on y in the same way.
 
 NB. Implementation differences with stock jdict
@@ -122,15 +123,15 @@ s =: get [ put NB. As old "s:" : stores all items and returns their symbol indic
 NB. Sorting: if given ints, sorts them according to lexicographic order of corresponding data; if given data, sorts them according to adding order
 NB.   data not in symbol dictionary appear at the beginning for asc and end for desc
 NB.   Dyad sorts x by y as above (i.e. lexicographic on data if y is integer, else insertion order)
-asc   =: (/: get)  NB. sort up
-desc  =: (\: get)  NB. sort down
-create =: (create_peasydict_ f.)@:(('hash'&,)^:('hash' -.@:(+./)@:E. ]))
+asc    =: (/: get)  NB. sort up
+desc   =: (\: get)  NB. sort down
+create =: (create_peasydict_ f.)@:(('hash;'&,)^:('hash' -.@:(+./)@:E. ]))
 createdict =: createdict_peasydict_ f. NB. Required so createdict runs in symbol locale,so erase erases names from sym object, not in parent class.
 
 NB.*v easydict_z_: Create easydict. y: options as single, ;-separated string.
 easydict_z_=:conew&'peasydict'
-NB.*v symbols_z_: Create symbol table. Ignores y.
-easysym_z_ =:''&conew@'peasysym'
+NB.*v symbols_z_: Create symbol table. y: options as for easydict.
+easysym_z_ =:conew&'peasysym'
 
 NB. Future:
 NB. TODO: persistence (once available unloading/loading working for dictionaries)
