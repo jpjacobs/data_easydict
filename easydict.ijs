@@ -5,7 +5,7 @@ NB. Parameters (as for the data/dictionary addon) are given as a string with ; s
 NB. backingdict stores backing jdict. Before the first put, methods are placeholders. After the first put, they are inherited from the backing dict.
 NB. Currently not supported: params taking gerunds as values (keycompare, keyhash).
 
-NB. psym wraps jsymbol in a similar way (and is a subclass of easydict pretty much as jsymbol is to jdict).
+NB. peasysym wraps jsymbol in a similar way (and is a subclass of easydict pretty much as jsymbol is to jdict).
 NB. it adds s to behave like old s: (returning symbols in addition to storing them; but normal put is still available) and adds sorting.
 NB. Due to J semantics and get doing lookup either way, asc and desc implement both lexicographic sorting and sorting based on insertion order, when given symbol ints or their data, respectively. Their dyads sort any x based on y in the same way.
 
@@ -114,8 +114,8 @@ destroy =: {{
   codestroy y  NB. destroy the locale, freeing everything
 }}
 
-NB. psym implements symbol tables. s operates as old s:, use get directly for s: inv.
-coclass'psym'
+NB. peasysym implements symbol tables. s operates as old s:, use get directly for s: inv.
+coclass'peasysym'
 coinsert'peasydict' NB. Inherit from from peasydict
 issym =: 1 NB. set symbol; then do whatever easydict does.
 s =: get [ put NB. As old "s:" : stores all items and returns their symbol indices. For now, it puts all inputs and has no inverse, because it doesn't work well with classes...
@@ -130,7 +130,7 @@ createdict =: createdict_peasydict_ f. NB. Required so createdict runs in symbol
 NB.*v easydict_z_: Create easydict. y: options as single, ;-separated string.
 easydict_z_=:conew&'peasydict'
 NB.*v symbols_z_: Create symbol table. Ignores y.
-symbols_z_ =:''&conew@'psym'
+easysym_z_ =:''&conew@'peasysym'
 
 NB. Future:
 NB. TODO: persistence (once available unloading/loading working for dictionaries)
